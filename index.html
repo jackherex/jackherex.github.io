@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>短剧之家 — 正在跳转</title>
+
+<!-- 跳转页不参与排名，把权重指向真正的首页 -->
+<link rel="canonical" href="https://jackherex.github.io/miniflix/">
+<!-- JS 被禁用时的兜底：0 秒后由浏览器自己跳 -->
+<meta http-equiv="refresh" content="0; url=https://jackherex.github.io/miniflix/">
+<script>location.replace('https://jackherex.github.io/miniflix/');</script>
+
+<style>
+  :root{--bg:#070509;--text:#f7f3f5;--text-2:#a8a0a8;--accent:#ff2d55}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:var(--bg);color:var(--text);
+    font:16px/1.7 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  main{text-align:center;padding:24px}
+  .mark{
+    width:46px;height:46px;margin:0 auto 20px;border-radius:13px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--accent);background:rgba(255,45,85,.12);
+    border:1px solid rgba(255,45,85,.24);
+  }
+  p{color:var(--text-2);font-size:15px}
+  p b{color:var(--text);font-weight:600}
+  a{color:var(--accent);text-underline-offset:3px}
+  .dot{
+    display:inline-block;width:9px;height:9px;border-radius:50%;
+    background:var(--accent);margin-right:7px;vertical-align:1px;
+    animation:blink 1.1s ease-in-out infinite;
+  }
+  @keyframes blink{50%{opacity:.25}}
+  @media (prefers-reduced-motion:reduce){.dot{animation:none}}
+</style>
+</head>
+<body>
+<main>
+  <div class="mark" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+      <path d="M8.5 5.2v13.6c0 .9 1 1.4 1.7.9l10.3-6.8c.7-.4.7-1.4 0-1.8L10.2 4.3c-.7-.5-1.7 0-1.7.9Z"/>
+    </svg>
+  </div>
+  <p><span class="dot" aria-hidden="true"></span>正在前往 <b>短剧之家</b>…</p>
+  <p style="margin-top:14px;font-size:13.5px">
+    <a href="https://jackherex.github.io/miniflix/">浏览器没有自动跳转？点这里</a>
+  </p>
+</main>
+</body>
+</html>
