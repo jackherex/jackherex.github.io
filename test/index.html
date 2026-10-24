@@ -91,6 +91,9 @@ img{display:block}
   letter-spacing:-.038em;
 }
 .hero h1 em{font-style:normal;font-weight:400;color:var(--text-2)}
+/* 两行标题各占一行；同时 ⚠️ translate/scale 这类独立变换属性对
+   非替换行内元素无效，span 必须变成块级才能动 */
+.hero h1 .lumen-line{display:block}
 .hero__sub{
   margin:22px auto 0;max-width:620px;font-size:clamp(15px,1.7vw,18px);
   line-height:1.75;color:var(--text-2);
@@ -105,28 +108,54 @@ img{display:block}
 .badge b{color:var(--text);font-weight:600}
 .hero__cta{margin-top:34px;display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
 
-/* ---- 横向剧照墙 ---- */
-.reels{padding:22px 0 8px;overflow:hidden}
-.reels__hd{
-  display:flex;align-items:baseline;gap:12px;margin-bottom:22px;
+/* ---- 海报墙（lumen 做法：3D 展平 + 行随滚动反向滑）---- */
+.wall{padding:26px 0 10px}
+.wall__hd{
+  display:flex;align-items:baseline;gap:12px;margin-bottom:20px;flex-wrap:wrap;
 }
-.reels__hd h2{font-size:clamp(20px,2.6vw,28px);font-weight:700;letter-spacing:-.02em}
-.reels__hd span{font-size:13px;color:var(--text-3)}
-.reel{
-  display:flex;gap:14px;width:max-content;padding:0 7px;
-  animation:marquee 78s linear infinite;
+.wall__hd h2{font-size:clamp(20px,2.6vw,28px);font-weight:700;letter-spacing:-.02em}
+.wall__hd span{font-size:13px;color:var(--text-3)}
+.wall__stage{
+  position:relative;height:clamp(420px,64vh,680px);overflow:clip;
 }
-.reel--rev{animation-direction:reverse;animation-duration:96s;margin-top:14px}
-.reels:hover .reel{animation-play-state:paused}
-@keyframes marquee{to{transform:translateX(-50%)}}
-.poster{width:128px;flex:none}
-.poster img{
-  width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;
+/* 四边淡出（对应 lumen 的 .lumen-wall-mask）：
+   横向 14%~86% 实、纵向 5%~95% 实，两张渐变取交集。
+   没有它，倾斜的宽平面会被视口硬切一刀，边上是直角断层。 */
+.wall__mask{
+  position:absolute;inset:0;
+  -webkit-mask-image:linear-gradient(90deg,#0000,#000 14% 86%,#0000),
+                     linear-gradient(#0000,#000 5% 95%,#0000);
+  mask-image:linear-gradient(90deg,#0000,#000 14% 86%,#0000),
+             linear-gradient(#0000,#000 5% 95%,#0000);
+  -webkit-mask-composite:source-in;
+  mask-composite:intersect;
+}
+/* 平面：静止态就是倾斜的（lumen 静态值 rotateX 18° / rotateZ -8°），
+   支持滚动动画时由 keyframes 从 26° 接管；平面自带纵向遮罩，
+   上下两排的边缘溶进背景，看起来才像一整面墙而不是两条带子。 */
+.wall__plane{
+  --wall-scale:1;
+  position:absolute;top:50%;left:50%;width:max-content;
+  display:flex;flex-direction:column;gap:16px;
+  transform:translate(-50%,-50%) perspective(2400px) rotateX(18deg) rotateZ(-8deg) scale(var(--wall-scale));
+  -webkit-mask-image:linear-gradient(#0000,#000 30% 70%,#0000);
+  mask-image:linear-gradient(#0000,#000 30% 70%,#0000);
+}
+@media (max-width:639px){ .wall__plane{--wall-scale:.72} }
+/* 行：只负责滚动驱动的反向滑（外层），内容交给内层 track */
+.wall__row{width:max-content}
+/* 轨道：无限横向漂移。宽度必须正好是「一份拷贝」的整数倍，
+   否则回到 0% 时会跳一下 —— 所以拷贝份数写死在 --marquee-copies:4，
+   JS 也按 4 份渲染。 */
+.wall__track{
+  --marquee-copies:4;
+  display:flex;gap:16px;width:max-content;padding-right:16px;
+}
+.wp{width:120px;flex:none}
+.wp img{
+  width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:8px;
   border:1px solid var(--line);
-}
-.poster__cap{
-  margin-top:7px;font-size:11.5px;color:var(--text-3);line-height:1.4;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  box-shadow:0 18px 40px -20px rgba(10,2,6,.95);
 }
 
 /* ---- 产品化 mock ---- */
@@ -219,12 +248,124 @@ img{display:block}
 }
 .what__foot{margin-top:22px;display:flex;gap:12px;flex-wrap:wrap}
 
-/* ---- 进场 ---- */
-.rv{opacity:0;transform:translateY(18px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
-.rv.in{opacity:1;transform:none}
+/* ============================================================
+   滚动驱动特效（照 lumen.ax 的配方，数值为原站实测）
+   - 全部挂在 prefers-reduced-motion:no-preference 上
+   - 再包一层 @supports，不支持的浏览器直接静态呈现，不会白屏
+   - 关键点：初始隐藏态由 keyframes 的 0% + fill-mode:both 负责，
+     CSS 里绝不写 opacity:0，否则不支持的环境里元素会永远透明
+   ============================================================ */
+@media (prefers-reduced-motion:no-preference){
+  @supports (animation-timeline:view()){
+
+    /* 命名时间轴：写在祖先上，子孙用 animation-timeline:--名字 引用 */
+    .lumen-hero-exit{view-timeline-name:--lumen-stage}
+    .lumen-wall{view-timeline-name:--lumen-wall}
+
+    /* ① Hero 离场：contain 40% → exit 45%，上移 80px + 缩到 .92 + 淡出 */
+    .lumen-hero-exit{
+      animation:linear both lumen-hero-exit;
+      animation-timeline:view();
+      animation-range:contain 40% exit 45%;
+    }
+    @keyframes lumen-hero-exit{
+      to{opacity:0;transform:translateY(-80px) scale(.92)}
+    }
+
+    /* ② 海报墙 3D 展平：entry → exit 40%，
+         透视 2400px，rotateX 26°→8°、rotateZ -10°→-5° */
+    .lumen-wall-plane{
+      animation:linear both lumen-wall-flatten;
+      animation-timeline:--lumen-wall;
+      animation-range:entry exit 40%;
+    }
+    @keyframes lumen-wall-flatten{
+      0%{transform:translate(-50%,-50%) perspective(2400px) rotateX(26deg) rotateZ(-10deg) scale(var(--wall-scale,1))}
+      to{transform:translate(-50%,-50%) perspective(2400px) rotateX(8deg) rotateZ(-5deg) scale(var(--wall-scale,1))}
+    }
+
+    /* ③ 行随滚动反向滑：cover 全程，--row-shift 取反 */
+    .lumen-wall-row{
+      animation:linear both lumen-wall-slide;
+      animation-timeline:--lumen-wall;
+      animation-range:cover;
+    }
+    @keyframes lumen-wall-slide{
+      0%{transform:translate3d(var(--row-shift,0px),0,0)}
+      to{transform:translate3d(calc(var(--row-shift,0px) * -1),0,0)}
+    }
+
+    /* ④ 文字行：entry 10% → cover 30%，按 --reveal-delay 错峰 */
+    .lumen-line{
+      animation:linear both lumen-line-in;
+      animation-timeline:view();
+      animation-range:entry calc(10% + var(--reveal-delay,0%)) cover calc(30% + var(--reveal-delay,0%));
+    }
+    @keyframes lumen-line-in{
+      0%{opacity:0;translate:0 28px}
+      to{opacity:1;translate:0}
+    }
+    @keyframes lumen-line-in-blur{
+      0%{opacity:0;filter:blur(8px);translate:0 28px}
+      to{opacity:1;filter:blur();translate:0}
+    }
+
+    /* ⑤ 卡片：entry 4% → cover 24%，下移 48px + scale .96 */
+    .lumen-card{
+      animation:linear both lumen-card-in;
+      animation-timeline:view();
+      animation-range:entry calc(4% + var(--reveal-delay,0%)) cover calc(24% + var(--reveal-delay,0%));
+    }
+    @keyframes lumen-card-in{
+      0%{opacity:0;translate:0 48px;scale:.96}
+      to{opacity:1;translate:0;scale:1}
+    }
+
+    /* ⑥ 通用上浮：entry 8% → cover 28% */
+    .lumen-reveal{
+      animation:linear both lumen-reveal;
+      animation-timeline:view();
+      animation-range:entry calc(8% + var(--reveal-delay,0%)) cover calc(28% + var(--reveal-delay,0%));
+    }
+    @keyframes lumen-reveal{
+      0%{opacity:0;transform:translateY(32px)}
+      to{opacity:1;transform:none}
+    }
+
+    @keyframes lumen-leave{to{opacity:.3;translate:0 -28px}}
+
+    /* ⑦ 桌面专属离场：≥768px 才挂，exit 30% → exit 100%
+          文字换成带模糊的进场，滚远时淡到 .3 并上移 */
+    @media (min-width:768px){
+      .lumen-line{
+        animation:linear both lumen-line-in-blur,linear forwards lumen-leave;
+        animation-timeline:view(),view();
+        animation-range:entry calc(10% + var(--reveal-delay,0%)) cover calc(30% + var(--reveal-delay,0%)),exit 30% exit 100%;
+      }
+      .lumen-card{
+        animation:linear both lumen-card-in,linear forwards lumen-leave;
+        animation-timeline:view(),view();
+        animation-range:entry calc(4% + var(--reveal-delay,0%)) cover calc(24% + var(--reveal-delay,0%)),exit 30% exit 100%;
+      }
+    }
+  }
+}
 @media (prefers-reduced-motion:reduce){
-  .rv{opacity:1;transform:none;transition:none}
-  .reel,.hero__glow{animation:none}
+  .hero__glow{animation:none}
+}
+
+/* ---- 海报墙内层的无限横向漂移（对应 lumen 的 .lumen-marquee）----
+   和滚动驱动的反向滑是两层：外层 .wall__row 跟着滚动进度从
+   --row-shift 走到它的反值，内层 .wall__track 永不停地往左漂。
+   位移量正好是 1/4 轨宽（--marquee-copies:4），所以循环无接缝。 */
+@media (prefers-reduced-motion:no-preference){
+  .wall__track{
+    animation:lumen-marquee var(--marquee-duration,110s) linear infinite;
+  }
+  @keyframes lumen-marquee{
+    0%{transform:translate(0)}
+    to{transform:translate3d(calc(-100% / var(--marquee-copies,4)),0,0)}
+  }
 }
 
 @media (max-width:900px){
@@ -233,7 +374,7 @@ img{display:block}
 }
 @media (max-width:560px){
   .hero{padding:74px 0 58px}
-  .poster{width:104px}
+  .wp{width:104px}
   .what__box{padding:22px 18px}
 }
 </style>
@@ -260,46 +401,65 @@ img{display:block}
 
 <main>
 
-  <!-- 1. Hero：大标题 + 徽章行 -->
-  <section class="hero">
+  <!-- 1. Hero：大标题 + 徽章行（滚动时整体上移淡出） -->
+  <section class="hero lumen-hero-exit">
     <div class="hero__glow" aria-hidden="true"></div>
     <div class="wrap">
-      <p class="hero__eyebrow rv"><i>新版</i>正在做的首页效果</p>
-      <h1 class="rv">把好剧<br><em>装进口袋</em></h1>
-      <p class="hero__sub rv">真人短剧、漫剧、AI 短剧，一处看全。没有广告，没有等待，只有下一集。</p>
-      <div class="badges rv">
+      <p class="hero__eyebrow lumen-reveal" style="--reveal-delay:0%"><i>新版</i>正在做的首页效果</p>
+      <h1>
+        <span class="lumen-line" style="--reveal-delay:0%">把好剧</span>
+        <span class="lumen-line" style="--reveal-delay:7%"><em>装进口袋</em></span>
+      </h1>
+      <p class="hero__sub lumen-reveal" style="--reveal-delay:14%">真人短剧、漫剧、AI 短剧，一处看全。没有广告，没有等待，只有下一集。</p>
+      <div class="badges lumen-reveal" style="--reveal-delay:20%">
         <span class="badge"><b>完全免费</b> · 不设 VIP</span>
         <span class="badge"><b>没有广告</b> · 只有正片</span>
         <span class="badge"><b>三端通用</b> · 手机 / 电脑 / 电视</span>
       </div>
-      <div class="hero__cta rv">
+      <div class="hero__cta lumen-reveal" style="--reveal-delay:26%">
         <a class="btn btn--primary" href="https://jackherex.github.io/miniflix/#devices">免费下载</a>
         <a class="btn btn--ghost" href="https://jackherex.github.io/miniflix/">看看现在的官网</a>
       </div>
     </div>
   </section>
 
-  <!-- 2. 横向剧照墙（真实封面自动滚动，悬停暂停） -->
-  <section class="reels">
+  <!-- 2. 海报墙：静止是 3D 倾斜，滚动时被「展平」，两行同时反向滑 -->
+  <section class="wall lumen-wall" id="library">
     <div class="wrap">
-      <div class="reels__hd rv">
-        <h2>都在库里</h2>
-        <span>303 部在架 · 截图来自站内封面 · 鼠标停上去就暂停</span>
+      <div class="wall__hd">
+        <h2 class="lumen-line" style="--reveal-delay:0%">都在库里</h2>
+        <span class="lumen-line" style="--reveal-delay:6%">303 部在架 · 封面来自站内 · 往下滚它会自己正过来，它自己也一直在慢慢漂</span>
       </div>
     </div>
-    <div class="reel" id="reel1"></div>
-    <div class="reel reel--rev" id="reel2"></div>
+    <div class="wall__stage">
+      <div class="wall__mask">
+        <div class="wall__plane lumen-wall-plane">
+          <div class="wall__row lumen-wall-row" style="--row-shift:-280px">
+            <div class="wall__track lumen-marquee" id="wallRow1" style="--marquee-duration:110s"></div>
+          </div>
+          <div class="wall__row lumen-wall-row" style="--row-shift:380px">
+            <div class="wall__track lumen-marquee" id="wallRow2" style="--marquee-duration:126s"></div>
+          </div>
+          <div class="wall__row lumen-wall-row" style="--row-shift:-480px">
+            <div class="wall__track lumen-marquee" id="wallRow3" style="--marquee-duration:118s"></div>
+          </div>
+          <div class="wall__row lumen-wall-row" style="--row-shift:280px">
+            <div class="wall__track lumen-marquee" id="wallRow4" style="--marquee-duration:132s"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- 3. 产品化 UI mock -->
   <section class="panels">
     <div class="wrap">
-      <div class="panels__hd rv">
-        <h2>打开就像自己的媒体库</h2>
-        <p>不注册、不登录也能看；接上 WebDAV 之后，进度与统计都跟着你走。</p>
+      <div class="panels__hd">
+        <h2 class="lumen-line" style="--reveal-delay:0%">打开就像自己的媒体库</h2>
+        <p class="lumen-line" style="--reveal-delay:6%">不注册、不登录也能看；接上 WebDAV 之后，进度与统计都跟着你走。</p>
       </div>
       <div class="grid2">
-        <div class="panel rv">
+        <div class="panel lumen-card" style="--reveal-delay:0%">
           <div class="panel__hd"><b>我的观影统计</b><i>WebDAV 同步</i></div>
           <div class="stat"><u>12</u><s>小时</s><u>30</u><s>分</s></div>
           <div class="panel__rows">
@@ -308,7 +468,7 @@ img{display:block}
             <div class="row"><b>缓存</b>离线弹幕一起存了<span>28 集</span></div>
           </div>
         </div>
-        <div class="panel rv">
+        <div class="panel lumen-card" style="--reveal-delay:8%">
           <div class="panel__hd"><b>我的榜单</b><i>自动更新</i></div>
           <div class="chips">
             <span class="chip chip--on">热播榜</span>
@@ -325,26 +485,26 @@ img{display:block}
   <!-- 4. 三端 -->
   <section class="ends">
     <div class="wrap">
-      <div class="ends__hd rv">
-        <h2>三种屏幕，一套体验</h2>
-        <p>同一套内核，手机、电脑、电视各自打磨。</p>
+      <div class="ends__hd">
+        <h2 class="lumen-line" style="--reveal-delay:0%">三种屏幕，一套体验</h2>
+        <p class="lumen-line" style="--reveal-delay:6%">同一套内核，手机、电脑、电视各自打磨。</p>
       </div>
       <div class="ends__g">
-        <div class="end rv">
+        <div class="end lumen-card" style="--reveal-delay:0%">
           <span class="end__ico">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.4"/><path d="M11 5.5h2"/></svg>
           </span>
           <h3>Android 手机版</h3>
           <p>随身追剧主力。后台播放、离线缓存、弹幕全功能，竖屏横屏都适配。</p>
         </div>
-        <div class="end rv">
+        <div class="end lumen-card" style="--reveal-delay:8%">
           <span class="end__ico">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="2.5" y="4" width="19" height="12.5" rx="1.8"/><path d="M8 20h8M12 16.5V20"/></svg>
           </span>
           <h3>Windows 电脑版</h3>
           <p>大屏看剧更爽。免安装绿色版，解压就用，支持画质增强与快捷键。</p>
         </div>
-        <div class="end rv">
+        <div class="end lumen-card" style="--reveal-delay:16%">
           <span class="end__ico">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="2.5" y="5" width="19" height="12" rx="1.8"/><path d="M8 21h8"/></svg>
           </span>
@@ -358,13 +518,16 @@ img{display:block}
   <!-- 5. 这个测试页在验证什么 -->
   <section class="what">
     <div class="wrap">
-      <div class="what__box rv">
+      <div class="what__box lumen-card">
         <h2>这个测试页在验证什么</h2>
         <ol>
-          <li><b>徽章行进第一屏</b>——「完全免费 / 没有广告 / 三端通用」提到标题下面，不用往下滚就知道值不值。</li>
-          <li><b>横向剧照墙</b>——用站内真实封面做两行反向自动滚动，鼠标停上去暂停；不点开就不额外加载。</li>
-          <li><b>产品化 UI mock</b>——把「观影统计」和「榜单筛选」做成控制台的样子，而不是干讲功能。</li>
-          <li><b>统一进场动画</b>——所有区块滚动进入视口时错峰浮现，<code>prefers-reduced-motion</code> 下全部关闭。</li>
+          <li><b>滚动驱动动画</b>——全部用 CSS <code>animation-timeline: view()</code>，没有一行滚动监听 JS；不支持的环境自动静态呈现。</li>
+          <li><b>海报墙 3D 展平</b>——静止时整面墙就是倾斜的（<code>perspective(2400px)</code> + <code>rotateX 18°</code>），往下滚从 26° 慢慢正到 8°；墙的上下左右四边都有渐变遮罩，不会被视口切出直角断层。</li>
+          <li><b>两层位移叠加</b>——外层每行跟着滚动进度做反向滑（<code>--row-shift</code> 取反），内层轨道永不停地在横向漂移（<code>--marquee-duration</code> 110~132s）。两层各走各的，所以滚动时墙在动，停住时墙也在动。</li>
+          <li><b>Hero 上移淡出</b>——第一屏滚到 40% 开始上移 80px、缩到 0.92 并淡出，把位子让给后面的墙。</li>
+          <li><b>逐行错峰</b>——标题一行一行进，桌面端还带 <code>blur(8px)</code> 从模糊到清晰；卡片按 <code>--reveal-delay</code> 排队归位。</li>
+          <li><b>桌面专属离场</b>——仅 768px 以上，区块滚远时淡到 0.3 并上移 28px，页面不会堆着一屏旧内容。</li>
+          <li><b>徽章行 + 产品化 mock</b>——「免费 / 无广告 / 三端」提到第一屏；观影统计和榜单做成控制台样子。</li>
         </ol>
         <div class="what__foot">
           <a class="btn btn--primary" href="https://jackherex.github.io/miniflix/">回官网</a>
@@ -388,48 +551,47 @@ img{display:block}
       var items = (d && d.items) || [];
       if (!items.length) return;
 
-      function card(it) {
-        if (!it.cover) return '';
-        // ⚠️ 这里**不能**用 loading="lazy"：横向墙是靠 transform 滚的，
-        //    右侧还没进视口的图一旦懒加载，滚到它时就是空白（实测 56 张只加载出 30 张）。
-        //    两行共 28 张不同封面，全部预加载也就 2~3MB，比空白划算。
-        return '<div class="poster">' +
-          '<img src="' + SITE + it.cover + '" alt="' + it.title + '">' +
-          '<div class="poster__cap">' + it.title + '</div></div>';
-      }
-      // 两行错开，避免看起来是同一批重复两遍
-      var rowA = items.slice(0, 14).map(card).join('');
-      var rowB = items.slice(14, 28).map(card).join('');
-      var r1 = document.getElementById('reel1');
-      var r2 = document.getElementById('reel2');
-      if (r1) { r1.innerHTML = rowA + rowA; }   // 复制一份才能无缝循环
-      if (r2) { r2.innerHTML = rowB + rowB; }
+      /* 墙上是 120px 的小图，用 128px 缩略图（assets/covers/t/）就够，
+         比 640px 原图省 92%：64 张去重后合计约 370KB，用原图要 4.5MB。 */
+      function thumb(p) { return p.replace('assets/covers/', 'assets/covers/t/'); }
 
-      // 榜单 mock 里也放几张真的
+      function poster(it) {
+        if (!it.cover) return '';
+        // ⚠️ 这里**不能**用 loading="lazy"：海报墙是 3D 倾斜的宽平面，
+        //    大量图片在视口外，懒加载会让滚到的时候还是空白。
+        //    track 里同一份内容重复 4 遍（--marquee-copies:4），
+        //    去重后 64 张缩略图，全量预加载约 370KB。
+        return '<div class="wp"><img src="' + SITE + thumb(it.cover) + '" alt="' + it.title + '"></div>';
+      }
+
+      /* 四行各取不同的 16 部，行内再重复 4 份 —— 重复是为了让轨道足够宽，
+         滚动反向滑（最大 480px）永远不会把边缘滑空。 */
+      var COPIES = 4, PER_ROW = 16;
+      var withCov = items.filter(function (it) { return it.cover; });
+      var rows = [0, 1, 2, 3].map(function (r) {
+        var set = withCov.slice(r * PER_ROW, (r + 1) * PER_ROW).map(poster).join('');
+        var html = '';
+        for (var k = 0; k < COPIES; k++) { html += set; }
+        return html;
+      });
+      [1, 2, 3, 4].forEach(function (n) {
+        var el = document.getElementById('wallRow' + n);
+        if (el) { el.innerHTML = rows[n - 1]; }
+      });
+
+      // 榜单 mock 里也放几张真的（34px 小图，同样用缩略图）
       var mini = document.getElementById('miniList');
       if (mini) {
         mini.innerHTML = items.slice(0, 4).map(function (it, i) {
           var tag = (it.tags && it.tags[0]) || '热播';
           return '<div class="mini__i">' +
-            (it.cover ? '<img loading="lazy" src="' + SITE + it.cover + '" alt="">' : '') +
+            (it.cover ? '<img loading="lazy" src="' + SITE + thumb(it.cover) + '" alt="">' : '') +
             '<span class="mini__t"><u>' + it.title + '</u><s>' + (it.episodes || '') +
             ' · ' + tag + '</s></span><b>NO.' + (i + 1) + '</b></div>';
         }).join('');
       }
     })
     .catch(function () {});
-
-  /* 滚动进场：错峰由 CSS 的 transition-delay 不给，统一即可 —— 测试页不必花哨 */
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (es) {
-      es.forEach(function (e) {
-        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
-      });
-    }, { threshold: 0.12 });
-    document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
-  } else {
-    document.querySelectorAll('.rv').forEach(function (el) { el.classList.add('in'); });
-  }
 })();
 </script>
 </body>
