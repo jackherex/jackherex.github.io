@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>效果测试 · 短剧之家</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="canonical" href="https://jackherex.github.io/miniflix/">
+<style>
+:root{
+  --bg:#070509; --bg-soft:#0b080c; --surface:#130f14; --surface-2:#1b161b;
+  --text:#f7f3f5; --text-2:#a8a0a8; --text-3:#918890;
+  --accent:#ff2d55; --accent-ink:#e11f47;
+  --line:rgba(255,255,255,.075); --line-strong:rgba(255,255,255,.15);
+  --ease:cubic-bezier(.16,1,.3,1);
+  --sh-2:0 1px 2px rgba(10,2,6,.5),0 18px 40px -18px rgba(10,2,6,.9);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--bg);color:var(--text);
+  font:16px/1.7 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit}
+img{display:block}
+.wrap{width:100%;max-width:1140px;margin:0 auto;padding:0 24px}
+
+/* ---- 测试说明条 ---- */
+.notice{
+  position:relative;z-index:20;text-align:center;
+  font-size:13px;color:#ffd9a0;
+  background:rgba(255,177,61,.1);border-bottom:1px solid rgba(255,177,61,.28);
+  padding:10px 16px;
+}
+.notice a{color:#ffc16b;text-decoration:underline;text-underline-offset:3px}
+
+/* ---- 顶栏 ---- */
+.top{
+  position:sticky;top:0;z-index:10;
+  background:rgba(7,5,9,.72);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.top__in{display:flex;align-items:center;gap:10px;height:58px}
+.brand{display:flex;align-items:center;gap:7px;font-size:14.5px;font-weight:600}
+.brand svg{color:var(--accent)}
+.tag{
+  font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--accent);
+  padding:3px 8px;border-radius:6px;background:rgba(255,45,85,.11);
+  border:1px solid rgba(255,45,85,.22);
+}
+.top .btn{margin-left:auto}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border-radius:980px;font-size:14px;font-weight:500;white-space:nowrap;
+  transition:all .3s var(--ease);text-decoration:none;
+}
+.btn--primary{
+  padding:13px 26px;color:#fff8f9;
+  background:linear-gradient(178deg,#e11f47 0%,var(--accent-ink) 58%,#c4102f 100%);
+  box-shadow:0 10px 26px -12px rgba(255,45,85,.5);
+}
+.btn--primary:hover{transform:translateY(-1px)}
+.btn--ghost{
+  padding:12px 22px;color:var(--text-2);
+  border:1px solid var(--line-strong);background:rgba(255,255,255,.02);
+}
+.btn--ghost:hover{color:var(--text);border-color:rgba(255,255,255,.36)}
+
+/* ---- Hero ---- */
+.hero{position:relative;overflow:hidden;padding:104px 0 76px;text-align:center}
+.hero__glow{
+  position:absolute;left:50%;top:-18%;width:min(1180px,124%);height:560px;
+  transform:translateX(-50%);pointer-events:none;
+  background:radial-gradient(ellipse 46% 56% at 50% 42%,rgba(255,45,85,.2),transparent 70%);
+  animation:float 9s ease-in-out infinite;
+}
+@keyframes float{50%{transform:translateX(-50%) translateY(14px)}}
+.hero .wrap{position:relative}
+.hero__eyebrow{
+  display:inline-flex;align-items:center;gap:9px;margin-bottom:22px;
+  font-size:12.5px;font-weight:500;color:var(--text-3);
+}
+.hero__eyebrow i{
+  font-style:normal;font-size:10.5px;font-weight:600;letter-spacing:.05em;
+  color:var(--accent);padding:3px 7px;border-radius:6px;
+  background:rgba(255,45,85,.11);border:1px solid rgba(255,45,85,.22);
+}
+.hero h1{
+  font-size:clamp(40px,7vw,78px);font-weight:700;line-height:1.04;
+  letter-spacing:-.038em;
+}
+.hero h1 em{font-style:normal;font-weight:400;color:var(--text-2)}
+.hero__sub{
+  margin:22px auto 0;max-width:620px;font-size:clamp(15px,1.7vw,18px);
+  line-height:1.75;color:var(--text-2);
+}
+/* 徽章行：lumen 的做法，把「免费 / 无广告」提到第一屏 */
+.badges{margin-top:28px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.badge{
+  font-size:13px;color:var(--text-2);
+  padding:7px 15px;border-radius:980px;
+  background:rgba(255,255,255,.04);border:1px solid var(--line);
+}
+.badge b{color:var(--text);font-weight:600}
+.hero__cta{margin-top:34px;display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
+
+/* ---- 横向剧照墙 ---- */
+.reels{padding:22px 0 8px;overflow:hidden}
+.reels__hd{
+  display:flex;align-items:baseline;gap:12px;margin-bottom:22px;
+}
+.reels__hd h2{font-size:clamp(20px,2.6vw,28px);font-weight:700;letter-spacing:-.02em}
+.reels__hd span{font-size:13px;color:var(--text-3)}
+.reel{
+  display:flex;gap:14px;width:max-content;padding:0 7px;
+  animation:marquee 78s linear infinite;
+}
+.reel--rev{animation-direction:reverse;animation-duration:96s;margin-top:14px}
+.reels:hover .reel{animation-play-state:paused}
+@keyframes marquee{to{transform:translateX(-50%)}}
+.poster{width:128px;flex:none}
+.poster img{
+  width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;
+  border:1px solid var(--line);
+}
+.poster__cap{
+  margin-top:7px;font-size:11.5px;color:var(--text-3);line-height:1.4;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* ---- 产品化 mock ---- */
+.panels{padding:70px 0 10px}
+.panels__hd{text-align:center;margin-bottom:38px}
+.panels__hd h2{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.022em}
+.panels__hd p{margin-top:12px;font-size:15px;color:var(--text-2)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.panel{
+  background:linear-gradient(178deg,var(--surface-2) 0%,var(--surface) 62%);
+  border:1px solid var(--line);border-radius:16px;padding:26px 26px 24px;
+  box-shadow:var(--sh-2);
+}
+.panel__hd{
+  display:flex;align-items:center;gap:9px;
+  font-size:13px;color:var(--text-3);margin-bottom:20px;
+}
+.panel__hd b{color:var(--text);font-weight:600;font-size:14px}
+.panel__hd i{
+  margin-left:auto;font-style:normal;font-size:11px;color:var(--accent);
+  padding:3px 8px;border-radius:6px;background:rgba(255,45,85,.11);
+  border:1px solid rgba(255,45,85,.22);
+}
+.stat{display:flex;align-items:baseline;gap:6px;font-weight:700;letter-spacing:-.03em}
+.stat u{
+  text-decoration:none;font-size:clamp(38px,5vw,54px);
+  font-variant-numeric:tabular-nums;
+}
+.stat s{
+  text-decoration:none;font-size:14px;font-weight:400;color:var(--text-3);
+  margin-right:10px;
+}
+.panel__rows{margin-top:22px;display:grid;gap:10px}
+.row{
+  display:flex;align-items:center;gap:12px;font-size:13.5px;color:var(--text-2);
+  padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.035);
+  border:1px solid var(--line);
+}
+.row b{color:var(--text);font-weight:600}
+.row span{margin-left:auto;color:var(--text-3);font-variant-numeric:tabular-nums}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.chip{
+  font-size:12.5px;padding:6px 12px;border-radius:8px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text-2);
+}
+.chip--on{
+  background:rgba(255,45,85,.12);border-color:rgba(255,45,85,.3);color:#ffb3c2;
+}
+.mini{display:grid;gap:8px}
+.mini__i{display:flex;align-items:center;gap:11px}
+.mini__i img{width:34px;height:46px;object-fit:cover;border-radius:6px;flex:none}
+.mini__t{font-size:13px;line-height:1.4;min-width:0}
+.mini__t u{display:block;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini__t s{display:block;text-decoration:none;font-size:11.5px;color:var(--text-3);margin-top:2px}
+.mini__i b{margin-left:auto;font-size:11.5px;font-weight:600;color:#ffd0a0;flex:none}
+
+/* ---- 三端 ---- */
+.ends{padding:74px 0 10px}
+.ends__hd{text-align:center;margin-bottom:36px}
+.ends__hd h2{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.022em}
+.ends__hd p{margin-top:12px;font-size:15px;color:var(--text-2)}
+.ends__g{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.end{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:24px 22px;transition:transform .4s var(--ease),border-color .4s var(--ease);
+}
+.end:hover{transform:translateY(-4px);border-color:var(--line-strong)}
+.end__ico{
+  width:40px;height:40px;border-radius:12px;margin-bottom:16px;
+  display:flex;align-items:center;justify-content:center;color:var(--accent);
+  background:linear-gradient(150deg,rgba(255,45,85,.16),rgba(255,107,61,.05));
+  border:1px solid rgba(255,45,85,.18);
+}
+.end h3{font-size:16px;font-weight:600}
+.end p{margin-top:8px;font-size:13px;line-height:1.7;color:var(--text-2)}
+
+/* ---- 测试说明 ---- */
+.what{padding:78px 0 100px}
+.what__box{
+  border:1px dashed rgba(255,255,255,.16);border-radius:16px;padding:30px 30px 26px;
+  background:rgba(255,255,255,.02);
+}
+.what h2{font-size:19px;font-weight:700;letter-spacing:-.015em}
+.what ol{margin:18px 0 0;padding-left:22px;display:grid;gap:11px}
+.what li{font-size:14px;line-height:1.75;color:var(--text-2)}
+.what li b{color:var(--text);font-weight:600}
+.what code{
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
+  background:rgba(255,255,255,.06);padding:2px 6px;border-radius:5px;color:var(--text);
+}
+.what__foot{margin-top:22px;display:flex;gap:12px;flex-wrap:wrap}
+
+/* ---- 进场 ---- */
+.rv{opacity:0;transform:translateY(18px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  .rv{opacity:1;transform:none;transition:none}
+  .reel,.hero__glow{animation:none}
+}
+
+@media (max-width:900px){
+  .grid2{grid-template-columns:1fr}
+  .ends__g{grid-template-columns:1fr}
+}
+@media (max-width:560px){
+  .hero{padding:74px 0 58px}
+  .poster{width:104px}
+  .what__box{padding:22px 18px}
+}
+</style>
+</head>
+<body>
+
+<div class="notice">
+  这是一个<strong>效果测试页</strong>，不是正式页面 —— 内容与交互都在验证中。
+  <a href="https://jackherex.github.io/miniflix/">回官网</a>
+</div>
+
+<header class="top">
+  <div class="wrap top__in">
+    <a class="brand" href="https://jackherex.github.io/miniflix/">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true">
+        <path d="M8.5 5.2v13.6c0 .9 1 1.4 1.7.9l10.3-6.8c.7-.4.7-1.4 0-1.8L10.2 4.3c-.7-.5-1.7 0-1.7.9Z"/>
+      </svg>
+      短剧之家
+    </a>
+    <span class="tag">效果测试</span>
+    <a class="btn btn--ghost" href="https://jackherex.github.io/miniflix/#devices">去下载</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- 1. Hero：大标题 + 徽章行 -->
+  <section class="hero">
+    <div class="hero__glow" aria-hidden="true"></div>
+    <div class="wrap">
+      <p class="hero__eyebrow rv"><i>新版</i>正在做的首页效果</p>
+      <h1 class="rv">把好剧<br><em>装进口袋</em></h1>
+      <p class="hero__sub rv">真人短剧、漫剧、AI 短剧，一处看全。没有广告，没有等待，只有下一集。</p>
+      <div class="badges rv">
+        <span class="badge"><b>完全免费</b> · 不设 VIP</span>
+        <span class="badge"><b>没有广告</b> · 只有正片</span>
+        <span class="badge"><b>三端通用</b> · 手机 / 电脑 / 电视</span>
+      </div>
+      <div class="hero__cta rv">
+        <a class="btn btn--primary" href="https://jackherex.github.io/miniflix/#devices">免费下载</a>
+        <a class="btn btn--ghost" href="https://jackherex.github.io/miniflix/">看看现在的官网</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. 横向剧照墙（真实封面自动滚动，悬停暂停） -->
+  <section class="reels">
+    <div class="wrap">
+      <div class="reels__hd rv">
+        <h2>都在库里</h2>
+        <span>303 部在架 · 截图来自站内封面 · 鼠标停上去就暂停</span>
+      </div>
+    </div>
+    <div class="reel" id="reel1"></div>
+    <div class="reel reel--rev" id="reel2"></div>
+  </section>
+
+  <!-- 3. 产品化 UI mock -->
+  <section class="panels">
+    <div class="wrap">
+      <div class="panels__hd rv">
+        <h2>打开就像自己的媒体库</h2>
+        <p>不注册、不登录也能看；接上 WebDAV 之后，进度与统计都跟着你走。</p>
+      </div>
+      <div class="grid2">
+        <div class="panel rv">
+          <div class="panel__hd"><b>我的观影统计</b><i>WebDAV 同步</i></div>
+          <div class="stat"><u>12</u><s>小时</s><u>30</u><s>分</s></div>
+          <div class="panel__rows">
+            <div class="row"><b>本周在看</b>《重生！丑小鸭逆袭成了万人迷》<span>第 17 集</span></div>
+            <div class="row"><b>待追</b>预约更新提醒<span>6 部</span></div>
+            <div class="row"><b>缓存</b>离线弹幕一起存了<span>28 集</span></div>
+          </div>
+        </div>
+        <div class="panel rv">
+          <div class="panel__hd"><b>我的榜单</b><i>自动更新</i></div>
+          <div class="chips">
+            <span class="chip chip--on">热播榜</span>
+            <span class="chip">新上线</span>
+            <span class="chip">评分 8+</span>
+            <span class="chip">连载中</span>
+          </div>
+          <div class="mini" id="miniList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. 三端 -->
+  <section class="ends">
+    <div class="wrap">
+      <div class="ends__hd rv">
+        <h2>三种屏幕，一套体验</h2>
+        <p>同一套内核，手机、电脑、电视各自打磨。</p>
+      </div>
+      <div class="ends__g">
+        <div class="end rv">
+          <span class="end__ico">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.4"/><path d="M11 5.5h2"/></svg>
+          </span>
+          <h3>Android 手机版</h3>
+          <p>随身追剧主力。后台播放、离线缓存、弹幕全功能，竖屏横屏都适配。</p>
+        </div>
+        <div class="end rv">
+          <span class="end__ico">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="2.5" y="4" width="19" height="12.5" rx="1.8"/><path d="M8 20h8M12 16.5V20"/></svg>
+          </span>
+          <h3>Windows 电脑版</h3>
+          <p>大屏看剧更爽。免安装绿色版，解压就用，支持画质增强与快捷键。</p>
+        </div>
+        <div class="end rv">
+          <span class="end__ico">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="2.5" y="5" width="19" height="12" rx="1.8"/><path d="M8 21h8"/></svg>
+          </span>
+          <h3>Android TV 版</h3>
+          <p>客厅大屏专用。遥控器能用，手机扫码更好用 —— 搜剧、点播都在手机上。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. 这个测试页在验证什么 -->
+  <section class="what">
+    <div class="wrap">
+      <div class="what__box rv">
+        <h2>这个测试页在验证什么</h2>
+        <ol>
+          <li><b>徽章行进第一屏</b>——「完全免费 / 没有广告 / 三端通用」提到标题下面，不用往下滚就知道值不值。</li>
+          <li><b>横向剧照墙</b>——用站内真实封面做两行反向自动滚动，鼠标停上去暂停；不点开就不额外加载。</li>
+          <li><b>产品化 UI mock</b>——把「观影统计」和「榜单筛选」做成控制台的样子，而不是干讲功能。</li>
+          <li><b>统一进场动画</b>——所有区块滚动进入视口时错峰浮现，<code>prefers-reduced-motion</code> 下全部关闭。</li>
+        </ol>
+        <div class="what__foot">
+          <a class="btn btn--primary" href="https://jackherex.github.io/miniflix/">回官网</a>
+          <a class="btn btn--ghost" href="https://jackherex.github.io/miniflix/#devices">去下载</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  var SITE = 'https://jackherex.github.io/miniflix/';
+
+  /* 剧集数据直接拉官网的 dramas.json —— 测试页不必维护副本，
+     官网更新这里也跟着新。 */
+  fetch(SITE + 'data/dramas.json', { cache: 'no-cache' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      var items = (d && d.items) || [];
+      if (!items.length) return;
+
+      function card(it) {
+        if (!it.cover) return '';
+        // ⚠️ 这里**不能**用 loading="lazy"：横向墙是靠 transform 滚的，
+        //    右侧还没进视口的图一旦懒加载，滚到它时就是空白（实测 56 张只加载出 30 张）。
+        //    两行共 28 张不同封面，全部预加载也就 2~3MB，比空白划算。
+        return '<div class="poster">' +
+          '<img src="' + SITE + it.cover + '" alt="' + it.title + '">' +
+          '<div class="poster__cap">' + it.title + '</div></div>';
+      }
+      // 两行错开，避免看起来是同一批重复两遍
+      var rowA = items.slice(0, 14).map(card).join('');
+      var rowB = items.slice(14, 28).map(card).join('');
+      var r1 = document.getElementById('reel1');
+      var r2 = document.getElementById('reel2');
+      if (r1) { r1.innerHTML = rowA + rowA; }   // 复制一份才能无缝循环
+      if (r2) { r2.innerHTML = rowB + rowB; }
+
+      // 榜单 mock 里也放几张真的
+      var mini = document.getElementById('miniList');
+      if (mini) {
+        mini.innerHTML = items.slice(0, 4).map(function (it, i) {
+          var tag = (it.tags && it.tags[0]) || '热播';
+          return '<div class="mini__i">' +
+            (it.cover ? '<img loading="lazy" src="' + SITE + it.cover + '" alt="">' : '') +
+            '<span class="mini__t"><u>' + it.title + '</u><s>' + (it.episodes || '') +
+            ' · ' + tag + '</s></span><b>NO.' + (i + 1) + '</b></div>';
+        }).join('');
+      }
+    })
+    .catch(function () {});
+
+  /* 滚动进场：错峰由 CSS 的 transition-delay 不给，统一即可 —— 测试页不必花哨 */
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
+  } else {
+    document.querySelectorAll('.rv').forEach(function (el) { el.classList.add('in'); });
+  }
+})();
+</script>
+</body>
+</html>
